@@ -1,7 +1,7 @@
 {
   "name": "nodejs-tutorial",
   "version": "1.0.0",
-  "description": "",
+  "description": "Birdie Backend",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -20,5 +20,13 @@
   },
   "devDependencies": {
     "nodemon": "^2.0.19"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RasenganORG/Birdie-Backend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/RasenganORG/Birdie-Backend/issues"
+  },
+  "homepage": "https://github.com/RasenganORG/Birdie-Backend#readme"
 }
