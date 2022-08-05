@@ -1,13 +1,15 @@
 const firebase = require("../db")
-const User = require("../models/user")
 const Tweet = require("../models/tweet")
 const firestore = firebase.firestore()
+const { FieldValue } = require("firebase-admin/firestore")
 
 const addTweet = async (req, res, next) => {
   try {
     const data = req.body
-    await firestore.collection("tweets").doc().set(data)
-    res.send("Record saved successfuly")
+    const tweetRef = await firestore.collection("tweets").doc()
+    const tweetRefId = tweetRef.id
+    tweetRef.set(data)
+    res.send({ ...data, id: tweetRefId })
   } catch (error) {
     res.status(400).send(error.message)
   }
@@ -24,11 +26,11 @@ const getAllTweets = async (req, res, next) => {
       data.forEach((doc) => {
         const tweet = new Tweet(
           doc.id,
+          doc.data().parentId,
           doc.data().userId,
           doc.data().text,
           doc.data().likes,
-          doc.data().retweets,
-          doc.data().replies
+          doc.data().retweets
         )
         tweetsArray.push(tweet)
       })
@@ -47,7 +49,36 @@ const getTweet = async (req, res, next) => {
     if (!data.exists) {
       res.status(404).send("Tweet with the given ID not found")
     } else {
-      res.send(data.data())
+      res.send({ ...data.data(), id })
+    }
+  } catch (error) {
+    res.status(400).send(error.message)
+  }
+}
+
+const getReplies = async (req, res, next) => {
+  try {
+    const id = req.params.id
+    const tweets = await firestore.collection("tweets")
+    const data = await tweets.get()
+    const repliesArray = []
+    if (data.empty) {
+      res.status(404).send("No tweet found")
+    } else {
+      data.forEach((doc) => {
+        if (doc.data().parentId === id) {
+          const tweet = new Tweet(
+            doc.id,
+            doc.data().parentId,
+            doc.data().userId,
+            doc.data().text,
+            doc.data().likes,
+            doc.data().retweets
+          )
+          repliesArray.push(tweet)
+        }
+      })
+      res.send(repliesArray)
     }
   } catch (error) {
     res.status(400).send(error.message)
@@ -59,8 +90,14 @@ const updateTweet = async (req, res, next) => {
     const id = req.params.id
     const data = req.body
     const tweet = await firestore.collection("tweets").doc(id)
-    await tweet.update(data)
-    res.send("Tweet record updated successfuly")
+    console.log("UPDATED")
+
+    await tweet.update({
+      replies: FieldValue.arrayUnion(data.addedTweetId),
+    })
+    const newData = await tweet.get()
+
+    res.send({ ...newData.data(), id })
   } catch (error) {
     res.status(400).send(error.message)
   }
@@ -80,6 +117,7 @@ module.exports = {
   addTweet,
   getAllTweets,
   getTweet,
+  getReplies,
   updateTweet,
   deleteTweet,
 }

@@ -1,11 +1,11 @@
 class Tweet {
-  constructor(id, userId, text, likes, retweets, replies) {
+  constructor(id, parentId, userId, text, likes, retweets) {
     this.id = id
+    this.parentId = parentId
     this.userId = userId
     this.text = text
     this.likes = likes
     this.retweets = retweets
-    this.replies = replies
   }
 }
 
