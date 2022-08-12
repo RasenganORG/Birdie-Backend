@@ -1,21 +1,24 @@
 class User {
   constructor(
     id,
-    // firstName,
-    // lastName,
-    userName,
+    name,
+    username,
     email,
-    password
-    // thumbnail,
+    password,
+    avatar,
+    bio,
+    background
+    // followers
+    // following
   ) {
     this.id = id
-    // this.firstName = firstName
-    // this.lastName = lastName
-    this.userName = userName
+    this.name = name
+    this.username = username
     this.email = email
     this.password = password
-    // this.thumbnail = thumbnail
-    // this.avatar = avatar
+    this.avatar = avatar
+    this.bio = bio
+    this.background = background
   }
 }
 

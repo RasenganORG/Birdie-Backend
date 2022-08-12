@@ -5,6 +5,7 @@ const bodyParser = require("body-parser")
 const config = require("./config")
 const userRoutes = require("./routes/user-routes")
 const tweetRoutes = require("./routes/tweet-routes")
+const followRoutes = require("./routes/follow-routes")
 
 const app = express()
 
@@ -14,6 +15,7 @@ app.use(bodyParser.json())
 
 app.use("/api", userRoutes.routes)
 app.use("/api", tweetRoutes.routes)
+app.use("/api", followRoutes.routes)
 
 app.listen(config.port, () =>
   console.log("App is listening on url http://localhost:" + config.port)

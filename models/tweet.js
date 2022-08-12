@@ -6,6 +6,7 @@ class Tweet {
     this.text = text
     this.likes = likes
     this.retweets = retweets
+    this.liked = false
   }
 }
 
