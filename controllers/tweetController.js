@@ -1,8 +1,11 @@
 const firebase = require("../db")
 const Tweet = require("../models/tweet")
 const User = require("../models/user")
+const Follow = require("../models/follow")
+const Like = require("../models/like")
 const firestore = firebase.firestore()
 const { FieldValue } = require("firebase-admin/firestore")
+const { getFollowedUsers } = require("./userController")
 
 const getUsersArray = async () => {
   const users = await firestore.collection("users")
@@ -20,6 +23,87 @@ const getUsersArray = async () => {
     usersArray.push(user)
   })
   return usersArray
+}
+
+const getTweetsForHome = async (req, res, next) => {
+  try {
+    const id = req.params.id // id of the user
+    const tweets = await firestore.collection("tweets")
+    const data = await tweets.get()
+    const tweetsArray = []
+    const usersArray = await getUsersArray()
+    const follows = await firestore.collection("follows")
+    const followsCollection = await follows.get()
+    const tweetLikes = await firestore
+      .collection("likes")
+      .where("userId", "==", id)
+      .get() // get all likes of user
+    const followedUsersArray = []
+    const likesCollectionArray = []
+
+    followsCollection.forEach((doc) => {
+      if (doc.data().userId === id) {
+        const follow = new Follow(
+          doc.id,
+          doc.data().userId,
+          doc.data().followedUserId
+        )
+        followedUsersArray.push(follow)
+      }
+    })
+
+    tweetLikes.forEach((doc) => {
+      if (doc.data().userId === id) {
+        const like = new Like(
+          doc.id,
+          doc.data().userId,
+          doc.data().likedTweetId
+        )
+        likesCollectionArray.push(like)
+      }
+    })
+
+    if (data.empty) {
+      res.status(404).send("No tweet record found")
+    } else {
+      data.forEach(async (doc) => {
+        const followed = followedUsersArray.find(
+          (f) => doc.data().userId === f.followedUserId
+        )
+        if (
+          (followed && doc.data().parentId === null) ||
+          (doc.data().userId === id && doc.data().parentId === null)
+        ) {
+          const user = usersArray.find((u) => doc.data().userId === u.id)
+          console.log("doc.id", doc.id)
+          let isLiked = likesCollectionArray.find(
+            (like) => like.likedTweetId === doc.id
+          )
+
+          console.log({ isLiked })
+          if (isLiked === undefined) {
+            isLiked = false
+          } else {
+            isLiked = true
+          }
+
+          const tweet = new Tweet(
+            doc.id,
+            doc.data().parentId,
+            doc.data().userId,
+            doc.data().text,
+            doc.data().likes,
+            doc.data().retweets
+          )
+          const newTweet = { ...tweet, ...user, id: doc.id, isLiked: isLiked }
+          tweetsArray.push(newTweet)
+        }
+      })
+      res.send(tweetsArray)
+    }
+  } catch (error) {
+    res.status(400).send(error.message)
+  }
 }
 
 const addTweet = async (req, res, next) => {
@@ -248,13 +332,28 @@ const getReplies = async (req, res, next) => {
   }
 }
 
-const updateTweet = async (req, res, next) => {
+const likeTweet = async (req, res, next) => {
   try {
     const id = req.params.id
     const tweet = await firestore.collection("tweets").doc(id)
     console.log("UPDATED")
 
     await tweet.update({ likes: FieldValue.increment(1) })
+    const newData = await tweet.get()
+
+    res.send({ ...newData.data(), id })
+  } catch (error) {
+    res.status(400).send(error.message)
+  }
+}
+
+const dislikeTweet = async (req, res, next) => {
+  try {
+    const id = req.params.id
+    const tweet = await firestore.collection("tweets").doc(id)
+    console.log("UPDATED")
+
+    await tweet.update({ likes: FieldValue.increment(-1), liked: false })
     const newData = await tweet.get()
 
     res.send({ ...newData.data(), id })
@@ -278,7 +377,9 @@ module.exports = {
   getAllTweets,
   getTweet,
   getReplies,
-  updateTweet,
+  likeTweet,
+  dislikeTweet,
   deleteTweet,
   getTweetsByUserId,
+  getTweetsForHome,
 }

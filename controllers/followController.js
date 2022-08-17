@@ -91,10 +91,30 @@ const getFollowers = async (req, res, next) => {
   }
 }
 
+const del = async (id) => {
+  try {
+    await firestore.collection("follows").doc(id).delete()
+
+    console.log("Record deleted successfuly")
+  } catch (error) {
+    console.log(error.message)
+  }
+}
+
 const deleteFollow = async (req, res, next) => {
   try {
-    const id = req.params.id
-    await firestore.collection("follows").doc(id).delete()
+    const data = req.body.data
+    console.log(data)
+    const like = await firestore
+      .collection("follows")
+      .where("userId", "==", data.userId)
+      .where("followedUserId", "==", data.likedTweetId)
+      .get()
+
+    like.forEach((doc) => {
+      del(doc.id)
+    })
+
     res.send("Record deleted successfuly")
   } catch (error) {
     res.status(400).send(error.message)

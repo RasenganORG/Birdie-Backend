@@ -146,8 +146,7 @@ const getUsersById = async (req, res, next) => {
   }
 }
 
-// returnez utilizatorii care sunt urmariti de userId
-const getFollowedUsers = async (req, res, next) => {
+const getFollowedUsers = async (req, res) => {
   try {
     const userId = req.params.id
     const usersArray = await getUsersArray()
