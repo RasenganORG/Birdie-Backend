@@ -105,13 +105,13 @@ const deleteFollow = async (req, res, next) => {
   try {
     const data = req.body.data
     console.log(data)
-    const like = await firestore
+    const follow = await firestore
       .collection("follows")
       .where("userId", "==", data.userId)
-      .where("followedUserId", "==", data.likedTweetId)
+      .where("followedUserId", "==", data.followedUserId)
       .get()
 
-    like.forEach((doc) => {
+    follow.forEach((doc) => {
       del(doc.id)
     })
 

@@ -10,6 +10,7 @@ const {
 const router = express.Router()
 
 router.post("/follows", addFollow)
+router.delete("/unfollow", deleteFollow)
 router.get("/follows", getAllFollows)
 router.delete("/follow/:id", deleteFollow)
 

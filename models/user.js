@@ -1,16 +1,5 @@
 class User {
-  constructor(
-    id,
-    name,
-    username,
-    email,
-    password,
-    avatar,
-    bio,
-    background
-    // followers
-    // following
-  ) {
+  constructor(id, name, username, email, password, avatar, bio, background) {
     this.id = id
     this.name = name
     this.username = username

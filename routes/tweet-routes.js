@@ -9,6 +9,7 @@ const {
   deleteTweet,
   getTweetsByUserId,
   getTweetsForHome,
+  addRetweet,
 } = require("../controllers/tweetController")
 
 const router = express.Router()
@@ -21,6 +22,7 @@ router.put("/dislikeTweet/:id", dislikeTweet)
 router.delete("/tweet/:id", deleteTweet)
 router.get("/tweetsByUserId/:id", getTweetsByUserId)
 router.get("/tweetsForHome/:id", getTweetsForHome)
+router.post("/addRetweet", addRetweet)
 
 module.exports = {
   routes: router,

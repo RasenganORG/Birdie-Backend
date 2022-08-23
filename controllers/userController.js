@@ -2,6 +2,7 @@
 
 const firebase = require("../db")
 const User = require("../models/user")
+const Follow = require("../models/follow")
 const firestore = firebase.firestore()
 
 const addUser = async (req, res, next) => {
@@ -61,15 +62,51 @@ const getUser = async (req, res, next) => {
   }
 }
 
+// const getUserById = async (req, res, next) => {
+//   try {
+//     const id = req.params.id
+//     const user = await firestore.collection("users").doc(id)
+//     const data = await user.get()
+//     if (!data.exists) {
+//       res.status(404).send("User with the given ID not found")
+//     } else {
+//       res.send(data.data())
+//     }
+//   } catch (error) {
+//     res.status(400).send(error.message)
+//   }
+// }
+
 const getUserById = async (req, res, next) => {
   try {
-    const id = req.params.id
-    const user = await firestore.collection("users").doc(id)
-    const data = await user.get()
-    if (!data.exists) {
+    const { userId, followedUserId } = req.query
+    const user = await firestore.collection("users").doc(followedUserId)
+    const userData = await user.get()
+    const follows = await firestore
+      .collection("follows")
+      .where("followedUserId", "==", followedUserId)
+      .get()
+    const usersFollowing = []
+
+    follows.forEach((doc) => {
+      const follow = new Follow(
+        doc.id,
+        doc.data().userId,
+        doc.data().followedUserId
+      )
+      usersFollowing.push(follow)
+    })
+
+    if (!userData.exists) {
       res.status(404).send("User with the given ID not found")
     } else {
-      res.send(data.data())
+      let isFollowed = usersFollowing.find((f) => f.userId === userId)
+      if (isFollowed === undefined) {
+        isFollowed = false
+      } else {
+        isFollowed = true
+      }
+      res.send({ ...userData.data(), isFollowed })
     }
   } catch (error) {
     res.status(400).send(error.message)
