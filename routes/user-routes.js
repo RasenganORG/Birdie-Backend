@@ -26,8 +26,9 @@ router.get("/usersbyusername", getUsersByUsername)
 // router.get("/users/:id", getUserById)
 router.get("/userById", getUserById)
 router.get("/usersById", getUsersById)
-router.get("/following/:id", getFollowedUsers)
-routes.get("/followers/:id", getFollowers)
+// router.get("/following/:id", getFollowedUsers)
+router.get("/following", getFollowedUsers)
+routes.get("/followers", getFollowers)
 
 module.exports = {
   routes: router,

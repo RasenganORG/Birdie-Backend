@@ -2,6 +2,7 @@ const firebase = require("../db")
 const Tweet = require("../models/tweet")
 const User = require("../models/user")
 const Follow = require("../models/follow")
+const Retweet = require("../models/retweet")
 const Like = require("../models/like")
 const firestore = firebase.firestore()
 const { FieldValue } = require("firebase-admin/firestore")
@@ -30,6 +31,8 @@ const getTweetsForHome = async (req, res, next) => {
     const id = req.params.id // id of the user
     const tweets = await firestore.collection("tweets")
     const data = await tweets.get()
+    const retweets = await firestore.collection("retweets").get()
+    const retweetsCollectionArray = []
     const tweetsArray = []
     const usersArray = await getUsersArray()
     const follows = await firestore.collection("follows")
@@ -40,6 +43,17 @@ const getTweetsForHome = async (req, res, next) => {
       .get() // get all likes of user
     const followedUsersArray = []
     const likesCollectionArray = []
+
+    retweets.forEach((doc) => {
+      if (doc.data().userId === id) {
+        const retweet = new Retweet(
+          doc.id,
+          doc.data().userId,
+          doc.data().retweetedTweetId
+        )
+        retweetsCollectionArray.push(retweet)
+      }
+    })
 
     followsCollection.forEach((doc) => {
       if (doc.data().userId === id) {
@@ -64,16 +78,17 @@ const getTweetsForHome = async (req, res, next) => {
     })
 
     if (data.empty) {
-      res.status(404).send("No tweet record found")
+      res.status(404).send([])
     } else {
       data.forEach(async (doc) => {
         const followed = followedUsersArray.find(
           (f) => doc.data().userId === f.followedUserId
         )
         if (
-          (followed && doc.data().parentId === null) ||
+          followed &&
+          doc.data().parentId === null
           // if the user is in my followed list and is not a reply
-          (doc.data().userId === id && doc.data().parentId === null) // or if the user is me and is not a reply
+          // (doc.data().userId === id && doc.data().parentId === null) // or if the user is me and is not a reply
         ) {
           const user = usersArray.find((u) => doc.data().userId === u.id) // get the fields of that user
           console.log("doc.id", doc.id)
@@ -88,6 +103,15 @@ const getTweetsForHome = async (req, res, next) => {
             isLiked = true
           }
 
+          let isRetweetedByHomeUser = retweetsCollectionArray.find(
+            (retweet) => retweet.retweetedTweetId === doc.id
+          )
+          if (isRetweetedByHomeUser === undefined) {
+            isRetweetedByHomeUser = false
+          } else {
+            isRetweetedByHomeUser = true
+          }
+
           const tweet = new Tweet(
             doc.id,
             doc.data().parentId,
@@ -95,9 +119,18 @@ const getTweetsForHome = async (req, res, next) => {
             doc.data().text,
             doc.data().likes,
             doc.data().retweets,
-            doc.data().retweetedUserId
+            doc.data().retweetedUserId,
+            doc.data().createdAt
           )
-          const newTweet = { ...tweet, ...user, id: doc.id, isLiked: isLiked }
+
+          const newTweet = {
+            ...tweet,
+            ...user,
+            id: doc.id,
+            isLiked: isLiked,
+            isRetweetedByHomeUser: isRetweetedByHomeUser,
+            isRetweet: false,
+          }
           tweetsArray.push(newTweet)
         }
       })
@@ -114,10 +147,18 @@ const addTweet = async (req, res, next) => {
     const usersArray = await getUsersArray()
     const tweetRef = await firestore.collection("tweets").doc()
     const tweetRefId = tweetRef.id
-    tweetRef.set(data)
+    const createdAt = FieldValue.serverTimestamp()
+    tweetRef.set({ ...data, createdAt: createdAt })
     const user = usersArray.find((u) => data.userId === u.id)
 
-    res.send({ ...data, ...user, id: tweetRefId, isLiked: false })
+    res.send({
+      ...data,
+      ...user,
+      id: tweetRefId,
+      isLiked: false,
+      isRetweetedByHomeUser: false,
+      createdAt: createdAt,
+    })
   } catch (error) {
     res.status(400).send(error.message)
   }
@@ -142,7 +183,8 @@ const getAllTweets = async (req, res, next) => {
           doc.data().text,
           doc.data().likes,
           doc.data().retweets,
-          doc.data().retweetedUserId
+          doc.data().retweetedUserId,
+          doc.data().createdAt
         )
         const newTweet = { ...tweet, ...user, id: doc.id }
         tweetsArray.push(newTweet)
@@ -157,14 +199,31 @@ const getAllTweets = async (req, res, next) => {
 const getTweet = async (req, res, next) => {
   try {
     const id = req.params.id
+    const userId = req.params.userId
     const usersArray = await getUsersArray()
     const tweet = await firestore.collection("tweets").doc(id)
     const data = await tweet.get()
+    const tweetLikes = await firestore
+      .collection("likes")
+      .where("userId", "==", userId)
+      .get()
+    console.log("userId likes:" + userId)
+    const likesCollectionArray = []
+    tweetLikes.forEach((doc) => {
+      const like = new Like(doc.id, doc.data().userId, doc.data().likedTweetId)
+      likesCollectionArray.push(like)
+    })
+    let isLiked = likesCollectionArray.find((like) => like.likedTweetId === id)
+    if (isLiked === undefined) {
+      isLiked = false
+    } else {
+      isLiked = true
+    }
     const user = usersArray.find((u) => data.data().userId === u.id)
     if (!data.exists) {
       res.status(404).send("Tweet with the given ID not found")
     } else {
-      res.send({ ...data.data(), ...user, id })
+      res.send({ ...data.data(), ...user, id, isLiked: isLiked })
     }
   } catch (error) {
     res.status(400).send(error.message)
@@ -182,8 +241,14 @@ const getTweetsByUserId = async (req, res, next) => {
       .collection("likes")
       .where("userId", "==", id)
       .get()
+    const retweets = await firestore
+      .collection("retweets")
+      .where("userId", "==", id)
+      .get()
     const tweetsArray = []
     const likesCollectionArray = []
+    const retweetsCollectionArray = []
+
     tweetLikes.forEach((doc) => {
       if (doc.data().userId === id) {
         const like = new Like(
@@ -192,6 +257,17 @@ const getTweetsByUserId = async (req, res, next) => {
           doc.data().likedTweetId
         )
         likesCollectionArray.push(like)
+      }
+    })
+
+    retweets.forEach((doc) => {
+      if (doc.data().userId === id) {
+        const retweet = new Retweet(
+          doc.id,
+          doc.data().userId,
+          doc.data().retweetedTweetId
+        )
+        retweetsCollectionArray.push(retweet)
       }
     })
 
@@ -210,7 +286,8 @@ const getTweetsByUserId = async (req, res, next) => {
             doc.data().text,
             doc.data().likes,
             doc.data().retweets,
-            doc.data().retweetedUserId
+            doc.data().retweetedUserId,
+            doc.data().createdAt
           )
 
           let isLiked = likesCollectionArray.find(
@@ -222,11 +299,21 @@ const getTweetsByUserId = async (req, res, next) => {
             isLiked = true
           }
 
+          let isRetweetedByHomeUser = retweetsCollectionArray.find(
+            (retweet) => retweet.retweetedTweetId === doc.id
+          )
+          if (isRetweetedByHomeUser === undefined) {
+            isRetweetedByHomeUser = false
+          } else {
+            isRetweetedByHomeUser = true
+          }
+
           tweetsArray.push({
             ...tweet,
             ...userData.data(),
             id: doc.id,
             isLiked: isLiked,
+            isRetweetedByHomeUser: isRetweetedByHomeUser,
           })
         }
       })
@@ -244,9 +331,32 @@ const getReplies = async (req, res, next) => {
     const data = await tweets.get()
     const usersArray = await getUsersArray()
     const repliesArray = []
+    const tweetLikes = await firestore
+      .collection("likes")
+      .where("userId", "==", id)
+      .get()
     if (data.empty) {
       res.status(404).send("No tweet found")
     } else {
+      const likesCollectionArray = []
+      tweetLikes.forEach((doc) => {
+        const like = new Like(
+          doc.id,
+          doc.data().userId,
+          doc.data().likedTweetId
+        )
+        likesCollectionArray.push(like)
+      })
+
+      let isLiked = likesCollectionArray.find(
+        (like) => like.likedTweetId === doc.id
+      )
+      if (isLiked === undefined) {
+        isLiked = false
+      } else {
+        isLiked = true
+      }
+
       data.forEach((doc) => {
         if (doc.data().parentId === id) {
           const tweet = new Tweet(
@@ -256,11 +366,12 @@ const getReplies = async (req, res, next) => {
             doc.data().text,
             doc.data().likes,
             doc.data().retweets,
-            doc.data().retweetedUserId
+            doc.data().retweetedUserId,
+            doc.data().createdAt
           )
           const user = usersArray.find((u) => doc.data().userId === u.id)
 
-          repliesArray.push({ ...tweet, ...user, id: doc.id })
+          repliesArray.push({ ...tweet, ...user, id: doc.id, isLiked: isLiked })
         }
       })
       res.send(repliesArray)
@@ -329,7 +440,12 @@ const addRetweet = async (req, res, next) => {
     // const originalUser = usersArray.find((u) => originalTweet.userId === u.id)
     // const retweetedUser = usersArray.find((u) => data.retweetedUserId === u.id)
 
-    res.send({ ...data, ...user, id: tweetRefId })
+    res.send({
+      ...data,
+      ...user,
+      id: tweetRefId,
+      originalTweetId: originalTweet.id,
+    })
   } catch (error) {
     res.status(400).send(error.message)
   }

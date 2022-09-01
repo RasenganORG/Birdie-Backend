@@ -11,7 +11,13 @@ const addUser = async (req, res, next) => {
     const userRef = await firestore.collection("users").doc()
     const userRefId = userRef.id
     userRef.set(data)
-    res.send({ ...data, id: userRefId })
+    res.send({
+      ...data,
+      id: userRefId,
+      bio: "",
+      background:
+        "https://cdn.pixabay.com/photo/2016/09/08/22/43/books-1655783_960_720.jpg",
+    })
   } catch (error) {
     res.status(400).send(error.message)
   }
@@ -106,7 +112,7 @@ const getUserById = async (req, res, next) => {
       } else {
         isFollowed = true
       }
-      res.send({ ...userData.data(), isFollowed })
+      res.send({ ...userData.data(), isFollowed, id: userData.id })
     }
   } catch (error) {
     res.status(400).send(error.message)
@@ -183,13 +189,67 @@ const getUsersById = async (req, res, next) => {
   }
 }
 
+// const getFollowedUsers = async (req, res) => {
+//   try {
+//     const userId = req.params.id
+//     const usersArray = await getUsersArray()
+//     const follows = await firestore.collection("follows")
+//     const followsCollection = await follows.where("userId", "==", userId).get()
+//     const followedUsersArray = []
+//     followsCollection.forEach((doc) => {
+//       const userData = usersArray.find(
+//         (u) => u.id === doc.data().followedUserId
+//       )
+//       const user = new User(
+//         userData.id,
+//         userData.name,
+//         userData.username,
+//         userData.email,
+//         userData.password,
+//         userData.avatar
+//       )
+//       followedUsersArray.push({ ...user, isFollowed: true })
+//     })
+//     if (followedUsersArray.empty) {
+//       res.status(404).send("User with the given ID not found")
+//     } else {
+//       res.send(followedUsersArray)
+//     }
+//   } catch (error) {
+//     res.status(400).send(error.message)
+//   }
+// }
+
 const getFollowedUsers = async (req, res) => {
   try {
-    const userId = req.params.id
+    const userId = req.query.userId
+    const homeUserId = req.query.homeUserId
+    console.log({ userId })
+    console.log({ homeUserId })
     const usersArray = await getUsersArray()
     const follows = await firestore.collection("follows")
     const followsCollection = await follows.where("userId", "==", userId).get()
+    const homeUserFollowsCollection = await follows
+      .where("userId", "==", homeUserId)
+      .get()
     const followedUsersArray = []
+    const homeUserFollowedUsersArray = []
+
+    homeUserFollowsCollection.forEach((doc) => {
+      const userData = usersArray.find(
+        (u) => u.id === doc.data().followedUserId
+      )
+      const user = new User(
+        userData.id,
+        userData.name,
+        userData.username,
+        userData.email,
+        userData.password,
+        userData.avatar
+      )
+      homeUserFollowedUsersArray.push({ ...user, isFollowed: true })
+    })
+
     followsCollection.forEach((doc) => {
       const userData = usersArray.find(
         (u) => u.id === doc.data().followedUserId
@@ -202,8 +262,19 @@ const getFollowedUsers = async (req, res) => {
         userData.password,
         userData.avatar
       )
-      followedUsersArray.push(user)
+
+      let isFollowedByHomeUser = homeUserFollowedUsersArray.find(
+        (u) => u.id === userData.id
+      )
+      if (isFollowedByHomeUser === undefined) {
+        isFollowedByHomeUser = false
+      } else {
+        isFollowedByHomeUser = true
+      }
+
+      followedUsersArray.push({ ...user, isFollowed: isFollowedByHomeUser })
     })
+
     if (followedUsersArray.empty) {
       res.status(404).send("User with the given ID not found")
     } else {
@@ -216,13 +287,48 @@ const getFollowedUsers = async (req, res) => {
 
 const getFollowers = async (req, res, next) => {
   try {
-    const userId = req.params.id
+    const userId = req.query.userId
+    const homeUserId = req.query.homeUserId
     const usersArray = await getUsersArray()
     const follows = await firestore.collection("follows")
     const followsCollection = await follows
       .where("followedUserId", "==", userId)
-      .get()
+      .get() // get all docs where the user followed is userId
+    const homeUserFollowsCollection = await follows
+      .where("userId", "==", homeUserId)
+      .get() // get all docs where the user following is homwUserId
+    const followedUsers = await firestore
+      .collection("follows")
+      .where("userId", "==", userId)
+      .get() // get all docs where the user following is userId
+    const followedCollectionArray = []
+    const homeUserFollowedUsersArray = []
+
+    followedUsers.forEach((doc) => {
+      const follow = new Follow(
+        doc.id,
+        doc.data().userId,
+        doc.data().followedUserId
+      )
+      followedCollectionArray.push(follow)
+    })
     const followedUsersArray = []
+
+    homeUserFollowsCollection.forEach((doc) => {
+      const userData = usersArray.find(
+        (u) => u.id === doc.data().followedUserId
+      )
+      const user = new User(
+        userData.id,
+        userData.name,
+        userData.username,
+        userData.email,
+        userData.password,
+        userData.avatar
+      )
+      homeUserFollowedUsersArray.push({ ...user, isFollowed: true })
+    })
+
     followsCollection.forEach((doc) => {
       const userData = usersArray.find((u) => u.id === doc.data().userId)
       const user = new User(
@@ -233,8 +339,24 @@ const getFollowers = async (req, res, next) => {
         userData.password,
         userData.avatar
       )
-      followedUsersArray.push(user)
+
+      let isFollowedByHomeUser = homeUserFollowedUsersArray.find(
+        (u) => u.id === userData.id
+      )
+      if (isFollowedByHomeUser === undefined) {
+        isFollowedByHomeUser = false
+      } else {
+        isFollowedByHomeUser = true
+      }
+
+      let following = followedCollectionArray.find(
+        (u) => u.followedUserId === userData.id
+      )
+      if (following !== undefined) following = true
+      else following = false
+      followedUsersArray.push({ ...user, isFollowed: isFollowedByHomeUser })
     })
+
     if (followedUsersArray.empty) {
       res.status(404).send("User with the given ID not found")
     } else {
@@ -245,9 +367,59 @@ const getFollowers = async (req, res, next) => {
   }
 }
 
+// const getFollowers = async (req, res, next) => {
+//   try {
+//     const userId = req.params.id
+//     const usersArray = await getUsersArray()
+//     const follows = await firestore.collection("follows")
+//     const followsCollection = await follows
+//       .where("followedUserId", "==", userId)
+//       .get()
+//     const followedUsers = await firestore
+//       .collection("follows")
+//       .where("userId", "==", userId)
+//       .get()
+//     const followedCollectionArray = []
+//     followedUsers.forEach((doc) => {
+//       const follow = new Follow(
+//         doc.id,
+//         doc.data().userId,
+//         doc.data().followedUserId
+//       )
+//       followedCollectionArray.push(follow)
+//     })
+//     const followedUsersArray = []
+//     followsCollection.forEach((doc) => {
+//       const userData = usersArray.find((u) => u.id === doc.data().userId)
+//       const user = new User(
+//         userData.id,
+//         userData.name,
+//         userData.username,
+//         userData.email,
+//         userData.password,
+//         userData.avatar
+//       )
+//       let following = followedCollectionArray.find(
+//         (u) => u.followedUserId === userData.id
+//       )
+//       if (following !== undefined) following = true
+//       else following = false
+//       followedUsersArray.push({ ...user, isFollowed: following })
+//     })
+//     if (followedUsersArray.empty) {
+//       res.status(404).send("User with the given ID not found")
+//     } else {
+//       res.send(followedUsersArray)
+//     }
+//   } catch (error) {
+//     res.status(400).send(error.message)
+//   }
+// }
+
 const updateUser = async (req, res, next) => {
   try {
     const id = req.params.id
+    console.log({ id })
     const data = req.body
     const user = await firestore.collection("users").doc(id)
     await user.update(data)
