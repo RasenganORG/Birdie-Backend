@@ -29,7 +29,9 @@ const getUsersArray = async () => {
 const getTweetsForHome = async (req, res, next) => {
   try {
     const id = req.params.id // id of the user
-    const tweets = await firestore.collection("tweets")
+    const tweets = await firestore
+      .collection("tweets")
+      .orderBy("createdAt", "desc")
     const data = await tweets.get()
     const retweets = await firestore.collection("retweets").get()
     const retweetsCollectionArray = []
@@ -49,7 +51,8 @@ const getTweetsForHome = async (req, res, next) => {
         const retweet = new Retweet(
           doc.id,
           doc.data().userId,
-          doc.data().retweetedTweetId
+          doc.data().retweetedTweetId,
+          doc.data().createdAt
         )
         retweetsCollectionArray.push(retweet)
       }
@@ -111,7 +114,11 @@ const getTweetsForHome = async (req, res, next) => {
           } else {
             isRetweetedByHomeUser = true
           }
+          const date = new Date(
+            doc.data().createdAt.seconds * 1000
+          ).toUTCString()
 
+          console.log("DATE : ", date)
           const tweet = new Tweet(
             doc.id,
             doc.data().parentId,
@@ -120,7 +127,7 @@ const getTweetsForHome = async (req, res, next) => {
             doc.data().likes,
             doc.data().retweets,
             doc.data().retweetedUserId,
-            doc.data().createdAt
+            date
           )
 
           const newTweet = {
@@ -130,6 +137,7 @@ const getTweetsForHome = async (req, res, next) => {
             isLiked: isLiked,
             isRetweetedByHomeUser: isRetweetedByHomeUser,
             isRetweet: false,
+            createdAt: date,
           }
           tweetsArray.push(newTweet)
         }
@@ -150,6 +158,7 @@ const addTweet = async (req, res, next) => {
     const createdAt = FieldValue.serverTimestamp()
     tweetRef.set({ ...data, createdAt: createdAt })
     const user = usersArray.find((u) => data.userId === u.id)
+    const date = new Date(createdAt.seconds * 1000).toUTCString()
 
     res.send({
       ...data,
@@ -157,7 +166,7 @@ const addTweet = async (req, res, next) => {
       id: tweetRefId,
       isLiked: false,
       isRetweetedByHomeUser: false,
-      createdAt: createdAt,
+      createdAt: date,
     })
   } catch (error) {
     res.status(400).send(error.message)
@@ -233,9 +242,9 @@ const getTweet = async (req, res, next) => {
 const getTweetsByUserId = async (req, res, next) => {
   try {
     const id = req.params.id
-    const user = await firestore.collection("users").doc(id)
+    const user = firestore.collection("users").doc(id)
     const userData = await user.get()
-    const tweets = await firestore.collection("tweets")
+    const tweets = firestore.collection("tweets").orderBy("createdAt")
     const data = await tweets.get()
     const tweetLikes = await firestore
       .collection("likes")
@@ -327,7 +336,7 @@ const getTweetsByUserId = async (req, res, next) => {
 const getReplies = async (req, res, next) => {
   try {
     const id = req.params.id
-    const tweets = await firestore.collection("tweets")
+    const tweets = firestore.collection("tweets").orderBy("createdAt")
     const data = await tweets.get()
     const usersArray = await getUsersArray()
     const repliesArray = []
