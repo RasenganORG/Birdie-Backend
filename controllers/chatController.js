@@ -1,16 +1,35 @@
 const firebase = require("../db")
 const Chat = require("../models/chat")
 const User = require("../models/user")
+const Message = require("../models/message")
 const firestore = firebase.firestore()
 
 const createChat = async (req, res, next) => {
   try {
     const data = req.body
+    const users = data.users
+    const createdBy = data.createdBy
+    const users2 = [users[1], users[0]]
     const chatRef = firestore.collection("chats").doc()
     const chatRefId = chatRef.id
+    const findChat = await firestore
+      .collection("chats")
+      .where("users", "==", users)
+      .get()
+    const findChat2 = await firestore
+      .collection("chats")
+      .where("users", "==", users2)
+      .get()
 
-    chatRef.set(data)
-    res.send({ ...data, id: chatRefId })
+    if (findChat.size === 0 && findChat2.size === 0) {
+      chatRef.set(data)
+      res.send({ ...data, id: chatRefId })
+    }
+    if (findChat.size > 0) {
+      findChat.forEach((chat) => res.send({ ...data, id: chat.id }))
+    } else if (findChat2.size > 0) {
+      findChat2.forEach((chat) => res.send({ ...data, id: chat.id }))
+    }
   } catch (error) {
     res.status(400).send(error.message)
   }
@@ -46,12 +65,15 @@ const getUserChats = async (req, res, next) => {
       .collection("chats")
       .where("users", "array-contains", id)
     const users = await firestore.collection("users").get()
+    const messages = await firestore.collection("messages").get()
     const data = await chats.get()
     const chatsArray = []
     const usersArray = []
+    const messagesArray = []
 
     if (data.empty) {
-      res.status(404).send("No retweet record found")
+      res.send([])
+      // res.send([])
     } else {
       users.forEach((doc) => {
         const user = new User(
@@ -66,15 +88,36 @@ const getUserChats = async (req, res, next) => {
         )
         usersArray.push(user)
       })
+
+      messages.forEach((doc) => {
+        const message = new Message(
+          doc.id,
+          doc.data().chatId,
+          doc.data().senderId,
+          doc.data().text,
+          doc.data().createdAt
+        )
+        messagesArray.push(message)
+      })
+
       data.forEach((doc) => {
         const userId =
           doc.data().users[0] === id ? doc.data().users[1] : doc.data().users[0]
         const userData = usersArray.find((user) => user.id === userId)
-        chatsArray.push({
-          chatId: doc.id,
-          userId: userId,
-          ...userData,
-        })
+        const messagesChat = messagesArray.find(
+          (message) => message.chatId === doc.id
+        )
+        console.log({ messagesChat })
+        if (
+          (messagesChat === undefined && id === doc.data().createdBy) ||
+          messagesChat !== undefined
+        ) {
+          chatsArray.push({
+            chatId: doc.id,
+            userId: userId,
+            ...userData,
+          })
+        }
       })
       res.send(chatsArray)
     }

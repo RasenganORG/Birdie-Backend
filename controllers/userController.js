@@ -232,8 +232,22 @@ const getFollowedUsers = async (req, res) => {
     const homeUserFollowsCollection = await follows
       .where("userId", "==", homeUserId)
       .get()
+    const followsHomeUsers = await firestore
+      .collection("follows")
+      .where("followedUserId", "==", homeUserId)
+      .get()
     const followedUsersArray = []
     const homeUserFollowedUsersArray = []
+    const followsHomeUsersArray = []
+
+    followsHomeUsers.forEach((doc) => {
+      const follow = new Follow(
+        doc.id,
+        doc.data().userId,
+        doc.data().followedUserId
+      )
+      followsHomeUsersArray.push(follow)
+    })
 
     homeUserFollowsCollection.forEach((doc) => {
       const userData = usersArray.find(
@@ -271,8 +285,18 @@ const getFollowedUsers = async (req, res) => {
       } else {
         isFollowedByHomeUser = true
       }
+      let following = followsHomeUsersArray.find(
+        (u) => u.userId === userData.id
+      )
+      console.log({ following })
+      if (following !== undefined) following = true
+      else following = false
 
-      followedUsersArray.push({ ...user, isFollowed: isFollowedByHomeUser })
+      followedUsersArray.push({
+        ...user,
+        isFollowed: isFollowedByHomeUser,
+        followsHomeUser: following,
+      })
     })
 
     if (followedUsersArray.empty) {
@@ -293,16 +317,31 @@ const getFollowers = async (req, res, next) => {
     const follows = await firestore.collection("follows")
     const followsCollection = await follows
       .where("followedUserId", "==", userId)
-      .get() // get all docs where the user followed is userId
+      .get() // get all docs where the user followed is userId ( followers of userId )
     const homeUserFollowsCollection = await follows
       .where("userId", "==", homeUserId)
-      .get() // get all docs where the user following is homwUserId
+      .get() // get all docs where the user following is homwUserId (all followed people of homeUserId)
     const followedUsers = await firestore
       .collection("follows")
       .where("userId", "==", userId)
       .get() // get all docs where the user following is userId
+    const followsHomeUsers = await firestore
+      .collection("follows")
+      .where("followedUserId", "==", homeUserId)
+      .get()
     const followedCollectionArray = []
     const homeUserFollowedUsersArray = []
+    const followsHomeUsersArray = []
+
+    followsHomeUsers.forEach((doc) => {
+      const follow = new Follow(
+        doc.id,
+        doc.data().userId,
+        doc.data().followedUserId
+      )
+      followsHomeUsersArray.push(follow)
+    })
+    console.log("follows: ", followsHomeUsersArray)
 
     followedUsers.forEach((doc) => {
       const follow = new Follow(
@@ -348,13 +387,18 @@ const getFollowers = async (req, res, next) => {
       } else {
         isFollowedByHomeUser = true
       }
-
-      let following = followedCollectionArray.find(
-        (u) => u.followedUserId === userData.id
+      console.log("userData.id", userData.id)
+      let following = followsHomeUsersArray.find(
+        (u) => u.userId === userData.id
       )
+      console.log({ following })
       if (following !== undefined) following = true
       else following = false
-      followedUsersArray.push({ ...user, isFollowed: isFollowedByHomeUser })
+      followedUsersArray.push({
+        ...user,
+        isFollowed: isFollowedByHomeUser,
+        followsHomeUser: following,
+      })
     })
 
     if (followedUsersArray.empty) {
@@ -475,7 +519,7 @@ const getUsersByUsername = async (req, res, next) => {
       .get()
 
     if (usersSnapshot.empty) {
-      res.status(404).send("User with the given ID not found")
+      res.send([])
     } else {
       let users = []
       usersSnapshot.forEach((user) => {

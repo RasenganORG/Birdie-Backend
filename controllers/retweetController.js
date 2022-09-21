@@ -95,6 +95,7 @@ const getRetweetsByUserId = async (req, res) => {
     const retweets = await firestore
       .collection("retweets")
       .where("userId", "==", id)
+      .orderBy("createdAt", "desc")
     const data = await retweets.get()
     const tweets = await firestore.collection("tweets").get()
     const usersArray = await getUsersArray()
@@ -117,7 +118,7 @@ const getRetweetsByUserId = async (req, res) => {
           doc.data().text,
           doc.data().likes,
           doc.data().retweets,
-          doc.data().createdAt
+          doc.data().createdAt.seconds
         )
         tweetsArray.push(tweet)
       })
@@ -184,7 +185,9 @@ const getRetweetsForHome = async (req, res) => {
   try {
     const id = req.params.id
     // get all retweets
-    const retweets = await firestore.collection("retweets")
+    const retweets = firestore
+      .collection("retweets")
+      .orderBy("createdAt", "desc")
     const data = await retweets.get()
     // get all tweets
     const tweets = await firestore.collection("tweets").get()
@@ -246,8 +249,7 @@ const getRetweetsForHome = async (req, res) => {
         doc.data().text,
         doc.data().likes,
         doc.data().retweets,
-        doc.data().retweetedUserId,
-        doc.data().createdAt
+        doc.data().createdAt.seconds
       )
       tweetsArray.push(tweet)
     })
