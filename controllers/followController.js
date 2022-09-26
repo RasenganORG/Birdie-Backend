@@ -20,7 +20,7 @@ const getAllFollows = async (req, res, next) => {
     const data = await follows.get()
     const followsArray = []
     if (data.empty) {
-      res.status(404).send("No follow record found")
+      res.send([])
     } else {
       data.forEach((doc) => {
         const follow = new Follow(
@@ -44,7 +44,7 @@ const getFollowedUsers = async (req, res, next) => {
     const followsCollection = await follows.get()
     const followedUsersArray = []
     if (followedUsersArray.empty) {
-      res.status(404).send("Nobody is following nobody")
+      res.send([])
     } else {
       followsCollection.forEach((doc) => {
         // const isInIds = data.includes(doc.id)
@@ -71,7 +71,7 @@ const getFollowers = async (req, res, next) => {
     const followsCollection = await follows.get()
     const followedUsersArray = []
     if (followedUsersArray.empty) {
-      res.status(404).send("Nobody is following nobody")
+      res.send([])
     } else {
       followsCollection.forEach((doc) => {
         // const isInIds = data.includes(doc.id)

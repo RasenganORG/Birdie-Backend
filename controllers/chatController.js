@@ -135,7 +135,7 @@ const getChatById = async (req, res) => {
     const users = await firestore.collection("users").get()
     const usersArray = []
     if (!data.exists) {
-      res.status(404).send("No chat record found")
+      res.send([])
     } else {
       users.forEach((doc) => {
         const user = new User(
@@ -177,7 +177,7 @@ const findChat = async (req, res) => {
     const chatsArray = []
 
     if (data.empty) {
-      res.status(404).send("No chat record found")
+      res.send([])
     } else {
       data.forEach((doc) => {
         if (

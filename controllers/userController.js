@@ -29,7 +29,7 @@ const getAllUsers = async (req, res, next) => {
     const data = await users.get()
     const usersArray = []
     if (data.empty) {
-      res.status(404).send("No user record found")
+      res.send([])
     } else {
       data.forEach((doc) => {
         const user = new User(
@@ -59,7 +59,7 @@ const getUser = async (req, res, next) => {
     const user = await firestore.collection("users").doc(id)
     const data = await user.get()
     if (!data.exists) {
-      res.status(404).send("User with the given ID not found")
+      res.send([])
     } else {
       res.send(data.data())
     }
@@ -104,7 +104,7 @@ const getUserById = async (req, res, next) => {
     })
 
     if (!userData.exists) {
-      res.status(404).send("User with the given ID not found")
+      res.send([])
     } else {
       let isFollowed = usersFollowing.find((f) => f.userId === userId)
       if (isFollowed === undefined) {
@@ -300,7 +300,7 @@ const getFollowedUsers = async (req, res) => {
     })
 
     if (followedUsersArray.empty) {
-      res.status(404).send("User with the given ID not found")
+      res.send([])
     } else {
       res.send(followedUsersArray)
     }
@@ -402,7 +402,7 @@ const getFollowers = async (req, res, next) => {
     })
 
     if (followedUsersArray.empty) {
-      res.status(404).send("User with the given ID not found")
+      res.send([])
     } else {
       res.send(followedUsersArray)
     }
@@ -494,7 +494,7 @@ const getLoggedUser = async (req, res, next) => {
     const userSnapshot = await usersCollection.where("email", "==", email).get()
 
     if (userSnapshot.empty) {
-      res.status(404).send("User with the given email not found!")
+      res.send([])
     } else {
       let user
 
@@ -503,7 +503,7 @@ const getLoggedUser = async (req, res, next) => {
 
       const result = user.password === pwd ? user : null
       if (result) res.send(result)
-      else res.status(404).send("Username or password invalid!")
+      else res.send([])
     }
   } catch (error) {
     res.status(404).send(error.message)

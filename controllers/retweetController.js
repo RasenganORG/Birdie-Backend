@@ -72,7 +72,7 @@ const getRetweets = async (req, res, next) => {
     const data = await retweets.get()
     const retweetsArray = []
     if (data.empty) {
-      res.status(404).send("No retweet record found")
+      res.send([])
     } else {
       data.forEach((doc) => {
         const retweet = new Retweet(
@@ -108,7 +108,7 @@ const getRetweetsByUserId = async (req, res) => {
     const retweetsCollectionArray = []
     const likesCollectionArray = []
     if (data.empty) {
-      res.status(404).send([])
+      res.send([])
     } else {
       tweets.forEach((doc) => {
         const tweet = new Tweet(
@@ -255,7 +255,7 @@ const getRetweetsForHome = async (req, res) => {
     })
 
     if (data.empty) {
-      res.status(404).send([])
+      res.send([])
     } else {
       data.forEach(async (doc) => {
         // get the retweet's tweet

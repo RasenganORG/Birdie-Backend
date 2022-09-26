@@ -80,7 +80,7 @@ const getTweetsForHome = async (req, res, next) => {
     })
 
     if (data.empty) {
-      res.status(404).send([])
+      res.send([])
     } else {
       data.forEach(async (doc) => {
         const followed = followedUsersArray.find(
@@ -175,7 +175,7 @@ const getAllTweets = async (req, res, next) => {
     const tweetsArray = []
 
     if (data.empty) {
-      res.status(404).send("No tweet record found")
+      res.send([])
     } else {
       data.forEach(async (doc) => {
         const user = usersArray.find((u) => doc.data().userId === u.id)
@@ -229,7 +229,7 @@ const getTweet = async (req, res, next) => {
     const user = usersArray.find((u) => data.data().userId === u.id)
 
     if (!data.exists) {
-      res.status(404).send("Tweet with the given ID not found")
+      res.send([])
     } else {
       res.send({
         ...data.data(),
@@ -286,7 +286,7 @@ const getTweetsByUserId = async (req, res, next) => {
     })
 
     if (data.empty) {
-      res.status(404).send("No tweet found!")
+      res.send([])
     } else {
       data.forEach((doc) => {
         if (
@@ -349,7 +349,7 @@ const getReplies = async (req, res, next) => {
       .where("userId", "==", id)
       .get()
     if (data.empty) {
-      res.status(404).send("No tweet found")
+      res.send([])
     } else {
       const likesCollectionArray = []
       tweetLikes.forEach((doc) => {
