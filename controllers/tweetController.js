@@ -5,7 +5,15 @@ const Follow = require("../models/follow")
 const Retweet = require("../models/retweet")
 const Like = require("../models/like")
 const firestore = firebase.firestore()
+const cloudinary = require("cloudinary").v2
 const { FieldValue, Timestamp } = require("firebase-admin/firestore")
+const config = require("../config")
+
+cloudinary.config({
+  cloud_name: config.cloudinaryConfig.cloudName,
+  api_key: config.cloudinaryConfig.apiKey,
+  api_secret: config.cloudinaryConfig.apiSecret,
+})
 
 const getUsersArray = async () => {
   const users = await firestore.collection("users")
@@ -122,7 +130,8 @@ const getTweetsForHome = async (req, res, next) => {
             doc.data().likes,
             doc.data().retweets,
             // doc.data().retweetedUserId,
-            doc.data().createdAt.seconds
+            doc.data().createdAt.seconds,
+            doc.data().url
           )
 
           const newTweet = {
@@ -146,17 +155,33 @@ const getTweetsForHome = async (req, res, next) => {
 const addTweet = async (req, res, next) => {
   try {
     const data = req.body
+    console.log({ data })
     const usersArray = await getUsersArray()
-    const tweetRef = await firestore.collection("tweets").doc()
+    const tweetRef = firestore.collection("tweets").doc()
     const tweetRefId = tweetRef.id
     const createdAt = FieldValue.serverTimestamp()
-    tweetRef.set({ ...data, createdAt: createdAt })
-    const user = usersArray.find((u) => data.userId === u.id)
+
+    const options = {
+      use_filename: false,
+      unique_filename: true,
+      overwrite: true,
+      resource_type: "auto",
+    }
+    let url = ""
+    if (data.url.length > 0) {
+      const result = await cloudinary.uploader.upload(data.url[0], options)
+      console.log(result)
+      url = result.secure_url
+    }
+
+    tweetRef.set({ ...data.tweetData, createdAt: createdAt, url })
+    const user = usersArray.find((u) => data.tweetData.userId === u.id)
     const timeNow = Timestamp.now()
 
     res.send({
-      ...data,
+      ...data.tweetData,
       ...user,
+      url: url,
       id: tweetRefId,
       isLiked: false,
       isRetweetedByHomeUser: false,
@@ -187,7 +212,8 @@ const getAllTweets = async (req, res, next) => {
           doc.data().likes,
           doc.data().retweets,
           doc.data().retweetedUserId,
-          doc.data().createdAt
+          doc.data().createdAt,
+          doc.data().url
         )
         const newTweet = { ...tweet, ...user, id: doc.id }
         tweetsArray.push(newTweet)
@@ -300,7 +326,8 @@ const getTweetsByUserId = async (req, res, next) => {
             doc.data().text,
             doc.data().likes,
             doc.data().retweets,
-            doc.data().createdAt.seconds
+            doc.data().createdAt.seconds,
+            doc.data().url
           )
 
           let isLiked = likesCollectionArray.find(
@@ -380,7 +407,8 @@ const getReplies = async (req, res, next) => {
             doc.data().likes,
             doc.data().retweets,
             // doc.data().retweetedUserId,
-            doc.data().createdAt.seconds
+            doc.data().createdAt.seconds,
+            doc.data().url
           )
           const user = usersArray.find((u) => doc.data().userId === u.id)
 

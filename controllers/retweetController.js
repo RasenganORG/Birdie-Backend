@@ -118,7 +118,8 @@ const getRetweetsByUserId = async (req, res) => {
           doc.data().text,
           doc.data().likes,
           doc.data().retweets,
-          doc.data().createdAt.seconds
+          doc.data().createdAt.seconds,
+          doc.data().url
         )
         tweetsArray.push(tweet)
       })
@@ -249,7 +250,8 @@ const getRetweetsForHome = async (req, res) => {
         doc.data().text,
         doc.data().likes,
         doc.data().retweets,
-        doc.data().createdAt.seconds
+        doc.data().createdAt.seconds,
+        doc.data().url
       )
       tweetsArray.push(tweet)
     })
