@@ -152,6 +152,24 @@ const getTweetsForHome = async (req, res, next) => {
   }
 }
 
+const upload = async (image) => {
+  try {
+    const options = {
+      use_filename: false,
+      unique_filename: true,
+      overwrite: true,
+      resource_type: "auto",
+    }
+    console.log({ image })
+    const result = await cloudinary.uploader.upload(image, options)
+    console.log({ result })
+    console.log("result.secure_url", result.secure_url)
+    return result.secure_url
+  } catch (error) {
+    console.log(error.message)
+  }
+}
+
 const addTweet = async (req, res, next) => {
   try {
     const data = req.body
@@ -161,27 +179,23 @@ const addTweet = async (req, res, next) => {
     const tweetRefId = tweetRef.id
     const createdAt = FieldValue.serverTimestamp()
 
-    const options = {
-      use_filename: false,
-      unique_filename: true,
-      overwrite: true,
-      resource_type: "auto",
-    }
-    let url = ""
-    if (data.url.length > 0) {
-      const result = await cloudinary.uploader.upload(data.url[0], options)
-      console.log(result)
-      url = result.secure_url
+    let imageUrl = []
+
+    for (const file of data.url) {
+      const newPath = await upload(file)
+      imageUrl.push(newPath)
     }
 
-    tweetRef.set({ ...data.tweetData, createdAt: createdAt, url })
+    console.log({ imageUrl })
+
+    tweetRef.set({ ...data.tweetData, createdAt: createdAt, url: imageUrl })
     const user = usersArray.find((u) => data.tweetData.userId === u.id)
     const timeNow = Timestamp.now()
 
     res.send({
       ...data.tweetData,
       ...user,
-      url: url,
+      url: imageUrl,
       id: tweetRefId,
       isLiked: false,
       isRetweetedByHomeUser: false,
